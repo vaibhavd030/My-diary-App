@@ -5,7 +5,7 @@ import { Users } from "lucide-react";
 import { SectionCard } from "./SectionCard";
 import { Field } from "@/components/ui/Field";
 import { useAutosave } from "@/lib/useAutosave";
-import { upsertEntry } from "@/lib/api";
+import { upsertEntry, deleteEntry } from "@/lib/api";
 
 export interface GroupMeditationData {
   datetime_logged?: string | null;
@@ -17,18 +17,35 @@ export interface GroupMeditationData {
 interface Props {
   date: string;
   initial: GroupMeditationData | null;
+  onDataChange?: () => void;
 }
 
-export function GroupMeditationSection({ date, initial }: Props) {
+export function GroupMeditationSection({ date, initial, onDataChange }: Props) {
   const [value, setValue] = useState<GroupMeditationData>(initial ?? {});
   const filled = Boolean(
     value.duration_minutes || value.place || value.notes,
   );
 
   const status = useAutosave(value, async (v) => {
-    if (!v.duration_minutes && !v.place && !v.notes) return;
+    if (!v.duration_minutes && !v.place && !v.notes) {
+      await deleteEntry(date, "group_meditation").catch(() => {});
+      onDataChange?.();
+      return;
+    }
     await upsertEntry(date, "group_meditation", { ...v });
+    onDataChange?.();
   });
+
+  const handleReset = async () => {
+    if (!confirm("Are you sure you want to reset this section?")) return;
+    try {
+      await deleteEntry(date, "group_meditation");
+      setValue({});
+      onDataChange?.();
+    } catch (err) {
+      console.error("Failed to reset group meditation:", err);
+    }
+  };
 
   const time = value.datetime_logged?.slice(11, 16) ?? "";
   const summary = [
@@ -47,6 +64,7 @@ export function GroupMeditationSection({ date, initial }: Props) {
       icon={Users}
       status={status}
       filled={filled}
+      onReset={handleReset}
     >
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Field label="Time">

@@ -40,6 +40,11 @@ class MeditationEntry(PracticeBase):
 
     place: str | None = Field(default=None, max_length=120)
     felt: str | None = Field(default=None, max_length=500)
+    quality: Annotated[int, Field(ge=1, le=10)] | None = None
+    is_distracted: bool = False
+    is_deep_unaware: bool = False
+    is_deep_transmission: bool = False
+    is_calm_deep_end: bool = False
 
 
 class CleaningEntry(PracticeBase):
@@ -193,6 +198,28 @@ class JournalNote(BaseModel):
     body: str = Field(default="", max_length=20000)
 
 
+class PersonalWatchEntry(BaseModel):
+    """Daily habit and personal check items.
+
+    Attributes:
+        date: Calendar date of the checks.
+        got_angry: Whether the user got angry today.
+        mtb: Mouth to Brain spiritual check.
+        junk_food: Whether outside/junk food was consumed.
+        scrolled_phone: Whether phone was used in bed.
+        watched_movie: Whether a movie was watched.
+        slept_late: Whether the user went to bed later than desired.
+    """
+
+    date: dt_date
+    got_angry: bool = False
+    mtb: bool = False
+    junk_food: bool = False
+    scrolled_phone: bool = False
+    watched_movie: bool = False
+    slept_late: bool = False
+
+
 # ─── Discriminated-union helpers ────────────────────────────────────────────
 
 EntryType = Literal[
@@ -204,6 +231,7 @@ EntryType = Literal[
     "gym",
     "activity",
     "journal_note",
+    "personal_watch",
 ]
 
 ENTRY_MODEL_BY_TYPE: dict[EntryType, type[BaseModel]] = {
@@ -215,6 +243,7 @@ ENTRY_MODEL_BY_TYPE: dict[EntryType, type[BaseModel]] = {
     "gym": GymEntry,
     "activity": ActivityEntry,
     "journal_note": JournalNote,
+    "personal_watch": PersonalWatchEntry,
 }
 
 

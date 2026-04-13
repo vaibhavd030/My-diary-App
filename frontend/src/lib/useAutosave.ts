@@ -24,6 +24,7 @@ export function useAutosave<T>(
   const firstRender = useRef(true);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestSaver = useRef(saver);
+  const previousValue = useRef<string>(JSON.stringify(value));
   latestSaver.current = saver;
 
   useEffect(() => {
@@ -31,8 +32,20 @@ export function useAutosave<T>(
       firstRender.current = false;
       return;
     }
+
+    // Deep equality check using JSON.stringify (safe for these simple data objects)
+    const currentSerialized = JSON.stringify(value);
+    if (currentSerialized === previousValue.current) {
+      return;
+    }
+    previousValue.current = currentSerialized;
+
     if (timer.current) clearTimeout(timer.current);
+    
+    // We delay the 'saving' status slightly to avoid flicker on very fast typing
+    // or we set it immediately if requested, but only if data actually changed.
     setStatus("saving");
+    
     timer.current = setTimeout(async () => {
       try {
         await latestSaver.current(value);

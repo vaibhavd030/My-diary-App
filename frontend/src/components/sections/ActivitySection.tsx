@@ -5,7 +5,7 @@ import { Activity as ActivityIcon } from "lucide-react";
 import { SectionCard } from "./SectionCard";
 import { Field } from "@/components/ui/Field";
 import { useAutosave } from "@/lib/useAutosave";
-import { upsertEntry } from "@/lib/api";
+import { upsertEntry, deleteEntry } from "@/lib/api";
 
 const ACTIVITIES = [
   "run",
@@ -56,9 +56,10 @@ export interface ActivityData {
 interface Props {
   date: string;
   initial: ActivityData | null;
+  onDataChange?: () => void;
 }
 
-export function ActivitySection({ date, initial }: Props) {
+export function ActivitySection({ date, initial, onDataChange }: Props) {
   const [value, setValue] = useState<ActivityData>({
     activity_type: "other",
     ...(initial ?? {}),
@@ -72,16 +73,32 @@ export function ActivitySection({ date, initial }: Props) {
   );
 
   const status = useAutosave(value, async (v) => {
-    if (
-      !v.duration_minutes &&
-      !v.distance_km &&
-      !v.intensity &&
-      !v.notes &&
-      (!v.activity_type || v.activity_type === "other")
-    )
+    const hasData = Boolean(
+      v.duration_minutes ||
+      v.distance_km ||
+      v.intensity ||
+      v.notes ||
+      (v.activity_type && v.activity_type !== "other")
+    );
+    if (!hasData) {
+      await deleteEntry(date, "activity").catch(() => {});
+      onDataChange?.();
       return;
+    }
     await upsertEntry(date, "activity", { ...v });
+    onDataChange?.();
   });
+
+  const handleReset = async () => {
+    if (!confirm("Are you sure you want to reset this section?")) return;
+    try {
+      await deleteEntry(date, "activity");
+      setValue({ activity_type: "other" });
+      onDataChange?.();
+    } catch (err) {
+      console.error("Failed to reset activity:", err);
+    }
+  };
 
   const act = value.activity_type ?? "other";
   const showDistance = HAS_DISTANCE[act];
@@ -102,6 +119,7 @@ export function ActivitySection({ date, initial }: Props) {
       icon={ActivityIcon}
       status={status}
       filled={filled}
+      onReset={handleReset}
     >
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Field label="Type">

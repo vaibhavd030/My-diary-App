@@ -5,7 +5,7 @@ import { HeartHandshake } from "lucide-react";
 import { SectionCard } from "./SectionCard";
 import { Field } from "@/components/ui/Field";
 import { useAutosave } from "@/lib/useAutosave";
-import { upsertEntry } from "@/lib/api";
+import { upsertEntry, deleteEntry } from "@/lib/api";
 
 export interface SittingData {
   datetime_logged?: string | null;
@@ -17,18 +17,35 @@ export interface SittingData {
 interface Props {
   date: string;
   initial: SittingData | null;
+  onDataChange?: () => void;
 }
 
-export function SittingSection({ date, initial }: Props) {
+export function SittingSection({ date, initial, onDataChange }: Props) {
   const [value, setValue] = useState<SittingData>(initial ?? {});
   const filled = Boolean(
     value.duration_minutes || value.took_from || value.notes,
   );
 
   const status = useAutosave(value, async (v) => {
-    if (!v.duration_minutes && !v.took_from && !v.notes) return;
+    if (!v.duration_minutes && !v.took_from && !v.notes) {
+      await deleteEntry(date, "sitting").catch(() => {});
+      onDataChange?.();
+      return;
+    }
     await upsertEntry(date, "sitting", { ...v });
+    onDataChange?.();
   });
+
+  const handleReset = async () => {
+    if (!confirm("Are you sure you want to reset this section?")) return;
+    try {
+      await deleteEntry(date, "sitting");
+      setValue({});
+      onDataChange?.();
+    } catch (err) {
+      console.error("Failed to reset sitting:", err);
+    }
+  };
 
   const time = value.datetime_logged?.slice(11, 16) ?? "";
   const summary = [
@@ -47,6 +64,7 @@ export function SittingSection({ date, initial }: Props) {
       icon={HeartHandshake}
       status={status}
       filled={filled}
+      onReset={handleReset}
     >
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Field label="Time">

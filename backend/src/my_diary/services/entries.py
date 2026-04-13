@@ -21,6 +21,8 @@ from my_diary.schemas.api import (
     DayOut,
     EntryOut,
 )
+from my_diary.schemas.analytics import AnalyticsMonthOut, MonthlyStat
+from sqlalchemy import cast, String as SqlString
 
 KNOWN_ENTRY_TYPES: tuple[EntryType, ...] = tuple(ENTRY_MODEL_BY_TYPE.keys())
 
@@ -180,3 +182,265 @@ async def get_month(
         cells.append(CalendarCell(date=d, richness=len(types), types=types))
 
     return CalendarMonthOut(year=year, month=month, cells=cells)
+
+
+async def get_analytics(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    year: int,
+    month: int,
+) -> AnalyticsMonthOut:
+    """Compute detailed analytics for a specific month."""
+    _, last_day = monthrange(year, month)
+    start = dt_date(year, month, 1)
+    end = dt_date(year, month, last_day)
+
+    result = await session.execute(
+        select(Entry).where(
+            and_(
+                Entry.user_id == user_id,
+                Entry.entry_date >= start,
+                Entry.entry_date <= end,
+            )
+        )
+    )
+    entries = result.scalars().all()
+
+    # Grouping
+    by_type: dict[str, list[Entry]] = {}
+    for e in entries:
+        by_type.setdefault(e.type, []).append(e)
+
+    stats: dict[str, MonthlyStat] = {}
+
+    # 1. Meditation
+    med_entries = by_type.get("meditation", [])
+    total_med_min = sum(e.data.get("duration_minutes", 0) or 0 for e in med_entries)
+    unique_med_days = len(set(e.entry_date for e in med_entries))
+    stats["meditation"] = MonthlyStat(
+        label="Meditation",
+        value=round(total_med_min / 60, 1),
+        unit="hours",
+        secondary_value=unique_med_days,
+        secondary_unit="days",
+        heatmap_data={
+            e.entry_date.isoformat(): min(4, (e.data.get("duration_minutes", 0) or 0) // 15)
+            for e in med_entries
+        },
+    )
+
+    # 2. Cleaning & Sitting (Aggregate hours too)
+    for t in ["cleaning", "sitting"]:
+        t_entries = by_type.get(t, [])
+        total_min = sum(e.data.get("duration_minutes", 0) or 0 for e in t_entries)
+        stats[t] = MonthlyStat(
+            label=t.title(),
+            value=round(total_min / 60, 1),
+            unit="hours",
+            secondary_value=len(t_entries),
+            secondary_unit="sessions",
+            heatmap_data={
+                e.entry_date.isoformat(): min(4, (e.data.get("duration_minutes", 0) or 0) // 15)
+                for e in t_entries
+            }
+        )
+
+    # 3. Sleep (User req: avg hours, heatmap green scale)
+    sleep_entries = by_type.get("sleep", [])
+    total_sleep_h = sum(e.data.get("duration_hours", 0) or 0 for e in sleep_entries)
+    avg_sleep = (total_sleep_h / len(sleep_entries)) if sleep_entries else 0
+    
+    # Heatmap intensity: 7h+ is 4 (dark green), 6h is 3, 5h is 2, etc.
+    stats["sleep"] = MonthlyStat(
+        label="Sleep",
+        value=round(avg_sleep, 1),
+        unit="h/night",
+        heatmap_data={
+            e.entry_date.isoformat(): max(0, min(4, int(e.data.get("duration_hours", 0) or 0) - 3))
+            for e in sleep_entries
+        },
+    )
+
+    # 3. Personal Watch (aggregated items)
+    pw_entries = by_type.get("personal_watch", [])
+    pw_items = ["got_angry", "mtb", "junk_food", "scrolled_phone", "watched_movie", "slept_late"]
+    for item in pw_items:
+        count = sum(1 for e in pw_entries if e.data.get(item))
+        stats[item] = MonthlyStat(
+            label=item.replace("_", " ").title(),
+            value=count,
+            unit="days",
+            heatmap_data={
+                e.entry_date.isoformat(): 4 if e.data.get(item) else 0
+                for e in pw_entries
+            }
+        )
+    
+    # 4. Others (Simplistic richness for now)
+    for t in ["gym", "activity"]:
+        t_entries = by_type.get(t, [])
+        stats[t] = MonthlyStat(
+            label=t.title(),
+            value=len(t_entries),
+            unit="sessions",
+            heatmap_data={e.entry_date.isoformat(): 4 for e in t_entries}
+        )
+
+    return AnalyticsMonthOut(year=year, month=month, stats=stats)
+
+
+async def get_annual_analytics(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    year: int,
+) -> AnalyticsMonthOut:
+    """Categorise and summarize entries for an entire year."""
+    start_date = dt_date(year, 1, 1)
+    end_date = dt_date(year, 12, 31)
+
+    result = await session.execute(
+        select(Entry).where(
+            and_(
+                Entry.user_id == user_id,
+                Entry.entry_date >= start_date,
+                Entry.entry_date <= end_date,
+            )
+        )
+    )
+    rows = result.scalars().all()
+    by_type: dict[str, list[Entry]] = {}
+    for r in rows:
+        by_type.setdefault(r.type, []).append(r)
+
+    stats: dict[str, MonthlyStat] = {}
+
+    # 1. Meditation
+    med_entries = by_type.get("meditation", [])
+    total_med_min = sum(float(e.data.get("duration_minutes", 0) or 0) for e in med_entries)
+    unique_med_days = len(set(e.entry_date for e in med_entries))
+    stats["meditation"] = MonthlyStat(
+        label="Meditation",
+        value=round(total_med_min / 60.0, 1),
+        unit="hours",
+        secondary_value=int(unique_med_days),
+        secondary_unit="days",
+        heatmap_data={
+            e.entry_date.isoformat(): int(min(4, float(e.data.get("duration_minutes", 0) or 0) // 15))
+            for e in med_entries
+        },
+    )
+
+    # 2. Cleaning & Sitting
+    for t in ["cleaning", "sitting"]:
+        t_entries = by_type.get(t, [])
+        total_min = sum(float(e.data.get("duration_minutes", 0) or 0) for e in t_entries)
+        stats[t] = MonthlyStat(
+            label=t.title(),
+            value=round(total_min / 60.0, 1),
+            unit="hours",
+            secondary_value=int(len(t_entries)),
+            secondary_unit="sessions",
+            heatmap_data={
+                e.entry_date.isoformat(): int(min(4, float(e.data.get("duration_minutes", 0) or 0) // 15))
+                for e in t_entries
+            }
+        )
+
+    # 3. Sleep
+    sleep_entries = by_type.get("sleep", [])
+    total_sleep_h = sum(float(e.data.get("duration_hours", 0) or 0) for e in sleep_entries)
+    avg_sleep = (total_sleep_h / len(sleep_entries)) if sleep_entries else 0.0
+    stats["sleep"] = MonthlyStat(
+        label="Sleep",
+        value=round(float(avg_sleep), 1),
+        unit="h avg",
+        heatmap_data={
+            e.entry_date.isoformat(): int(min(4, float(e.data.get("duration_hours", 0) or 0) // 2))
+            for e in sleep_entries
+        }
+    )
+
+    # 4. Gym & Activity
+    for t in ["gym", "activity"]:
+        t_entries = by_type.get(t, [])
+        total_h = sum(float(e.data.get("duration_minutes", 0) or 0) for e in t_entries) / 60.0
+        stats[t] = MonthlyStat(
+            label=t.title(),
+            value=round(total_h, 1),
+            unit="hours",
+            secondary_value=int(len(t_entries)),
+            secondary_unit="sessions",
+            heatmap_data={
+                e.entry_date.isoformat(): int(min(4, float(e.data.get("duration_minutes", 0) or 0) // 15))
+                for e in t_entries
+            }
+        )
+
+    # 5. Habits (PW)
+    for t in ["got_angry", "mtb", "scrolled_phone", "junk_food", "watched_movie", "slept_late"]:
+        pw_entries = [
+            e for e in by_type.get("personal_watch", []) 
+            if e.data.get(t) is True
+        ]
+        unique_days = len(set(e.entry_date for e in pw_entries))
+        stats[t] = MonthlyStat(
+            label=t.replace("_", " ").title(),
+            value=int(len(pw_entries)),
+            unit="days",
+            secondary_value=round(float((unique_days / 365.0) * 100.0), 1) if year > 0 else 0.0,
+            secondary_unit="% year",
+            heatmap_data={e.entry_date.isoformat(): 4 for e in pw_entries}
+        )
+
+    return AnalyticsMonthOut(year=year, month=1, stats=stats)
+
+
+async def search_entries(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    query: str,
+) -> list[EntryOut]:
+    """Find entries containing the search query string."""
+    query_str = f"%{query}%"
+    result = await session.execute(
+        select(Entry).where(
+            and_(
+                Entry.user_id == user_id,
+                cast(Entry.data, SqlString).ilike(query_str),
+            )
+        ).order_by(Entry.entry_date.desc()).limit(100)
+    )
+    rows = result.scalars().all()
+    return [_to_out(row) for row in rows]
+
+
+async def export_all_entries(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+) -> dict:
+    """Return all entries for a user grouped by date, for export."""
+    result = await session.execute(
+        select(Entry)
+        .where(Entry.user_id == user_id)
+        .order_by(Entry.entry_date.asc(), Entry.type.asc())
+    )
+    rows = result.scalars().all()
+
+    # Group by date
+    grouped: dict[str, dict] = {}
+    for row in rows:
+        date_str = row.entry_date.isoformat()
+        if date_str not in grouped:
+            grouped[date_str] = {"date": date_str, "entries": {}}
+        grouped[date_str]["entries"][row.type] = row.data
+
+    return {
+        "exported_at": dt_date.today().isoformat(),
+        "total_days": len(grouped),
+        "total_entries": len(rows),
+        "days": list(grouped.values()),
+    }

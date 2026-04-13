@@ -175,7 +175,9 @@ export function MonthGrid({ selectedDate, onSelect, refetchKey = 0 }: Props) {
           </div>
           {[
             ["meditation", "Meditations"],
+            ["cleaning", "Cleanings"],
             ["sitting", "Sittings"],
+            ["group_meditation", "Group meditations"],
             ["sleep", "Sleep logs"],
             ["gym", "Gym"],
             ["activity", "Activities"],

@@ -3,24 +3,57 @@
 :root {
   --background: #f5f1e6;
   --foreground: #3e3e3e;
+  --paper: #f5f1e6;
+  --paper-dark: #ebe2cf;
+  --paper-soft: #fdfbf5;
+  --ink: #3e3e3e;
+  --ink-soft: #735e3b;
+  --gold-accent: #c5a065;
+  --gold-vibrant: #d4af37;
+  --gold-faint: #f0e4c7;
+  --bronze: #8c6d3f;
+  --bronze-dark: #735e3b;
+  --sage-green: #a3b18a;
+  --sage-dark: #7d8b63;
+  --border-cream: #e6dece;
+  --hint: #b7ad92;
+}
+
+.dark {
+  --background: #1a1a1a;
+  --foreground: #e5e5e5;
+  --paper: #1a1a1a;
+  --paper-dark: #262626;
+  --paper-soft: #2d2d2d;
+  --ink: #e5e5e5;
+  --ink-soft: #a3a3a3;
+  --gold-accent: #c5a065;
+  --gold-vibrant: #d4af37;
+  --gold-faint: #3f3f3f;
+  --bronze: #c5a065;
+  --bronze-dark: #d4af37;
+  --sage-green: #a3b18a;
+  --sage-dark: #84cc16;
+  --border-cream: #404040;
+  --hint: #737373;
 }
 
 @theme {
-  --color-paper: #f5f1e6;
-  --color-paper-dark: #ebe2cf;
-  --color-paper-soft: #fdfbf5;
-  --color-ink: #3e3e3e;
-  --color-ink-soft: #735e3b;
-  --color-gold-accent: #c5a065;
-  --color-gold-vibrant: #d4af37;
-  --color-gold-faint: #f0e4c7;
-  --color-bronze: #8c6d3f;
-  --color-bronze-dark: #735e3b;
+  --color-paper: var(--paper);
+  --color-paper-dark: var(--paper-dark);
+  --color-paper-soft: var(--paper-soft);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-gold-accent: var(--gold-accent);
+  --color-gold-vibrant: var(--gold-vibrant);
+  --color-gold-faint: var(--gold-faint);
+  --color-bronze: var(--bronze);
+  --color-bronze-dark: var(--bronze-dark);
   --color-floral-pink: #e0c1b3;
-  --color-sage-green: #a3b18a;
-  --color-sage-dark: #7d8b63;
-  --color-border-cream: #e6dece;
-  --color-hint: #b7ad92;
+  --color-sage-green: var(--sage-green);
+  --color-sage-dark: var(--sage-dark);
+  --color-border-cream: var(--border-cream);
+  --color-hint: var(--hint);
 
   --font-script: "Pinyon Script", cursive;
   --font-serif: "Playfair Display", serif;
@@ -48,10 +81,11 @@ body {
 /* Card chrome — white paper with thin gold top-border strip */
 .diary-card {
   position: relative;
-  background: #ffffff;
+  background: var(--paper-soft);
   border: 1px solid var(--color-border-cream);
   border-radius: 0.75rem;
   overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
 }
 .diary-card::before {
   content: "";
@@ -111,7 +145,7 @@ body {
   border: 1px solid var(--color-border-cream);
   border-radius: 6px;
   padding: 7px 10px;
-  background: white;
+  background: var(--paper-soft);
   font-family: var(--font-body);
   font-size: 13px;
   color: var(--color-ink);
@@ -186,6 +220,17 @@ body {
 }
 
 /* Smooth expand animation for section bodies */
+.section-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease-in-out;
+}
+.section-content[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+.section-content-inner {
+  overflow: hidden;
+}
 .section-body {
   padding: 0 18px 16px;
   border-top: 1px solid var(--color-border-cream);

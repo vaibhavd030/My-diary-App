@@ -5,7 +5,7 @@ import { Dumbbell } from "lucide-react";
 import { SectionCard } from "./SectionCard";
 import { Field } from "@/components/ui/Field";
 import { useAutosave } from "@/lib/useAutosave";
-import { upsertEntry } from "@/lib/api";
+import { upsertEntry, deleteEntry } from "@/lib/api";
 
 const BODY_PARTS = [
   "full_body",
@@ -45,9 +45,10 @@ export interface GymData {
 interface Props {
   date: string;
   initial: GymData | null;
+  onDataChange?: () => void;
 }
 
-export function GymSection({ date, initial }: Props) {
+export function GymSection({ date, initial, onDataChange }: Props) {
   const [value, setValue] = useState<GymData>({
     body_parts: [],
     ...(initial ?? {}),
@@ -58,9 +59,25 @@ export function GymSection({ date, initial }: Props) {
   );
 
   const status = useAutosave(value, async (v) => {
-    if (!v.duration_minutes && !(v.body_parts?.length) && !v.intensity && !v.notes) return;
+    if (!v.duration_minutes && !(v.body_parts?.length) && !v.intensity && !v.notes) {
+      await deleteEntry(date, "gym").catch(() => {});
+      onDataChange?.();
+      return;
+    }
     await upsertEntry(date, "gym", { ...v });
+    onDataChange?.();
   });
+
+  const handleReset = async () => {
+    if (!confirm("Are you sure you want to reset this section?")) return;
+    try {
+      await deleteEntry(date, "gym");
+      setValue({ body_parts: [] });
+      onDataChange?.();
+    } catch (err) {
+      console.error("Failed to reset gym:", err);
+    }
+  };
 
   const togglePart = (p: BodyPart) => {
     const has = parts.includes(p);
@@ -86,6 +103,7 @@ export function GymSection({ date, initial }: Props) {
       icon={Dumbbell}
       status={status}
       filled={filled}
+      onReset={handleReset}
     >
       <div className="grid grid-cols-2 gap-3">
         <Field label="Duration (min)">
@@ -129,6 +147,7 @@ export function GymSection({ date, initial }: Props) {
               type="button"
               className="pill"
               data-active={parts.includes(p)}
+              aria-pressed={parts.includes(p)}
               onClick={() => togglePart(p)}
             >
               {LABEL[p]}

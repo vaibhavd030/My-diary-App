@@ -5,7 +5,7 @@ import { Moon } from "lucide-react";
 import { SectionCard } from "./SectionCard";
 import { Field } from "@/components/ui/Field";
 import { useAutosave } from "@/lib/useAutosave";
-import { upsertEntry } from "@/lib/api";
+import { upsertEntry, deleteEntry } from "@/lib/api";
 
 export interface SleepData {
   bedtime?: string | null;
@@ -18,6 +18,7 @@ export interface SleepData {
 interface Props {
   date: string;
   initial: SleepData | null;
+  onDataChange?: () => void;
 }
 
 function computeDuration(bedtime: string, wake: string): number | null {
@@ -35,7 +36,7 @@ function normaliseTime(t: string | null | undefined): string {
   return t.slice(0, 5);
 }
 
-export function SleepSection({ date, initial }: Props) {
+export function SleepSection({ date, initial, onDataChange }: Props) {
   const [bedtime, setBedtime] = useState<string>(
     normaliseTime(initial?.bedtime),
   );
@@ -54,14 +55,33 @@ export function SleepSection({ date, initial }: Props) {
 
   const value = { bedtime, wakeTime, quality, notes };
   const status = useAutosave(value, async (v) => {
-    if (!v.bedtime && !v.wakeTime && !v.quality && !v.notes) return;
+    if (!v.bedtime && !v.wakeTime && !v.quality && !v.notes) {
+      await deleteEntry(date, "sleep").catch(() => {});
+      onDataChange?.();
+      return;
+    }
     await upsertEntry(date, "sleep", {
       bedtime: v.bedtime ? `${v.bedtime}:00` : null,
       wake_time: v.wakeTime ? `${v.wakeTime}:00` : null,
       quality: v.quality,
       notes: v.notes || null,
     });
+    onDataChange?.();
   });
+
+  const handleReset = async () => {
+    if (!confirm("Are you sure you want to reset this section?")) return;
+    try {
+      await deleteEntry(date, "sleep");
+      setBedtime("");
+      setWakeTime("");
+      setQuality(null);
+      setNotes("");
+      onDataChange?.();
+    } catch (err) {
+      console.error("Failed to reset sleep:", err);
+    }
+  };
 
   const summary = [
     bedtime && wakeTime ? `${bedtime} → ${wakeTime}` : null,
@@ -79,6 +99,7 @@ export function SleepSection({ date, initial }: Props) {
       icon={Moon}
       status={status}
       filled={filled}
+      onReset={handleReset}
     >
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Field label="Bedtime">

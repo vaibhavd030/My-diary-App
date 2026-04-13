@@ -6,5 +6,17 @@
   "display": "standalone",
   "background_color": "#F5F1E6",
   "theme_color": "#F5F1E6",
-  "orientation": "portrait"
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/diary_icon_192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icons/diary_icon_512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
 }

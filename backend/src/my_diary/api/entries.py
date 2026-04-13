@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import date as dt_date
 
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import JSONResponse as FastAPIJSONResponse
 from pydantic import ValidationError
 
 from my_diary.api.deps import CurrentUserDep, SessionDep
@@ -16,6 +18,7 @@ from my_diary.schemas.api import (
     EntryOut,
     EntryUpsertRequest,
 )
+from my_diary.schemas.analytics import AnalyticsMonthOut
 from my_diary.services import entries as entries_service
 
 router = APIRouter(prefix="/api", tags=["entries"])
@@ -32,11 +35,7 @@ def _ensure_known_type(entry_type: str) -> EntryType:
 
 
 def _reject_future(entry_date: dt_date) -> None:
-    """Refuse to create entries for dates that haven't happened yet.
-
-    Raises:
-        HTTPException: 400 when ``entry_date`` is strictly after today.
-    """
+    """Refuse to create entries for dates that haven't happened yet."""
     if entry_date > dt_date.today():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -66,11 +65,7 @@ async def upsert_entry(
     session: SessionDep,
     current_user: CurrentUserDep,
 ) -> EntryOut:
-    """Create or replace the entry for ``(date, type)``.
-
-    The ``date`` field inside the payload is normalised to ``entry_date`` so
-    clients can't spoof cross-date writes.
-    """
+    """Create or replace the entry for ``(date, type)``."""
     _reject_future(entry_date)
     known_type = _ensure_known_type(entry_type)
     data = {**payload.data, "date": entry_date.isoformat()}
@@ -129,4 +124,73 @@ async def calendar_month(
         user_id=uuid.UUID(current_user.id),
         year=year,
         month=month,
+    )
+
+
+# NOTE: annual route MUST be registered before /{year}/{month} to avoid
+# FastAPI routing "annual" as an integer month value (422 int_parsing).
+@router.get("/analytics/{year}/annual", response_model=AnalyticsMonthOut)
+async def get_annual_analytics(
+    year: int,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> AnalyticsMonthOut:
+    """Get annual analytics for a given year."""
+    return await entries_service.get_annual_analytics(
+        session,
+        user_id=uuid.UUID(current_user.id),
+        year=year,
+    )
+
+
+@router.get("/analytics/{year}/{month}", response_model=AnalyticsMonthOut)
+async def analytics_month(
+    year: int,
+    month: int,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> AnalyticsMonthOut:
+    """Return detailed analytics and heatmaps for a month."""
+    if not 1 <= month <= 12:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Month must be 1-12"
+        )
+    return await entries_service.get_analytics(
+        session,
+        user_id=uuid.UUID(current_user.id),
+        year=year,
+        month=month,
+    )
+
+
+@router.get("/search", response_model=list[EntryOut])
+async def search_entries(
+    query: str,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> list[EntryOut]:
+    """Search for entries containing the query string."""
+    if len(query) < 2:
+        return []
+    return await entries_service.search_entries(
+        session,
+        user_id=uuid.UUID(current_user.id),
+        query=query,
+    )
+
+
+@router.get("/export")
+async def export_entries(
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> FastAPIJSONResponse:
+    """Export all diary entries for the current user as a downloadable JSON file."""
+    data = await entries_service.export_all_entries(
+        session,
+        user_id=uuid.UUID(current_user.id),
+    )
+    filename = f"my_diary_export_{dt_date.today().isoformat()}.json"
+    return FastAPIJSONResponse(
+        content=data,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

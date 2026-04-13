@@ -27,7 +27,9 @@ async def test_full_day(client: AsyncClient) -> None:
         json={"email": "vaibhav@example.com", "password": "a-strong-password"},
     )
     assert r.status_code == 200
-    headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    # Extract CSRF token from cookies
+    csrf_token = client.cookies.get("csrftoken")
+    assert csrf_token is not None
 
     today = dt_date.today().isoformat()
 
@@ -63,22 +65,30 @@ async def test_full_day(client: AsyncClient) -> None:
         r = await client.put(
             f"/api/days/{today}/{entry_type}",
             json={"data": data},
-            headers=headers,
+            headers={"X-CSRF-Token": csrf_token},
         )
         assert r.status_code == 200, f"{entry_type}: {r.text}"
 
     # sleep duration is auto-derived
-    r = await client.get(f"/api/days/{today}", headers=headers)
+    r = await client.get(f"/api/days/{today}")
     assert r.status_code == 200
     sleep = r.json()["entries"]["sleep"]["data"]
     assert sleep["duration_hours"] == 8.0
 
     # calendar reports richness == 8
     d = dt_date.today()
-    r = await client.get(f"/api/calendar/{d.year}/{d.month}", headers=headers)
+    r = await client.get(f"/api/calendar/{d.year}/{d.month}")
     cells = r.json()["cells"]
     today_cell = next(c for c in cells if c["date"] == today)
     assert today_cell["richness"] == 8
+
+    # test logout
+    r = await client.post("/auth/logout", headers={"X-CSRF-Token": csrf_token})
+    assert r.status_code == 200
+    
+    # next request should be 401
+    r = await client.get(f"/api/days/{today}")
+    assert r.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -93,7 +103,9 @@ async def test_future_date_rejected(client: AsyncClient) -> None:
         "/auth/login",
         json={"email": "u@example.com", "password": "another-pass-1234"},
     )
-    headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    assert r.status_code == 200
+    csrf_token = client.cookies.get("csrftoken")
+    assert csrf_token is not None
 
     from datetime import timedelta
 
@@ -101,6 +113,6 @@ async def test_future_date_rejected(client: AsyncClient) -> None:
     r = await client.put(
         f"/api/days/{tomorrow}/journal_note",
         json={"data": {"body": "from the future"}},
-        headers=headers,
+        headers={"X-CSRF-Token": csrf_token},
     )
     assert r.status_code == 400

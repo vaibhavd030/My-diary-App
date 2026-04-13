@@ -27,3 +27,7 @@ dist/
 .ruff_cache/
 htmlcov/
 .coverage
+updates2.md
+notes2.md
+updates.md
+notes.md

@@ -17,6 +17,7 @@ def _to_public(user: User) -> UserPublic:
     return UserPublic(
         id=str(user.id),
         email=user.email,
+        is_admin=user.is_admin,
         first_name=user.first_name,
         last_name=user.last_name,
         abhyasi_id=user.abhyasi_id,
@@ -80,15 +81,31 @@ async def authenticate(
 async def get_user_by_id(
     session: AsyncSession, user_id: uuid.UUID
 ) -> UserPublic | None:
-    """Fetch a user by UUID.
-
-    Args:
-        session: Active async SQLAlchemy session.
-        user_id: The user's UUID.
-
-    Returns:
-        The public profile, or None if no such user exists.
-    """
+    """Fetch a user by UUID."""
     result = await session.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     return _to_public(user) if user is not None else None
+
+
+async def update_password(
+    session: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    current_password: str,
+    new_password: str,
+) -> bool:
+    """Verify current password and set a new one.
+
+    Returns: True on success, False if current password is incorrect.
+    """
+    result = await session.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if user is None:
+        return False
+
+    if not verify_password(current_password, user.password_hash):
+        return False
+
+    user.password_hash = hash_password(new_password)
+    await session.commit()
+    return True

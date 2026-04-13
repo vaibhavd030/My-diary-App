@@ -34,10 +34,18 @@ class UserPublic(BaseModel):
 
     id: str
     email: EmailStr
+    is_admin: bool = False
     first_name: str | None = None
     last_name: str | None = None
     abhyasi_id: str | None = None
     created_at: datetime
+
+
+class PasswordChangeRequest(BaseModel):
+    """Payload for changing own password."""
+
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=128)
 
 
 class TokenResponse(BaseModel):

@@ -5,7 +5,7 @@ import { Sparkles } from "lucide-react";
 import { SectionCard } from "./SectionCard";
 import { Field } from "@/components/ui/Field";
 import { useAutosave } from "@/lib/useAutosave";
-import { upsertEntry } from "@/lib/api";
+import { upsertEntry, deleteEntry } from "@/lib/api";
 
 export interface CleaningData {
   datetime_logged?: string | null;
@@ -16,16 +16,33 @@ export interface CleaningData {
 interface Props {
   date: string;
   initial: CleaningData | null;
+  onDataChange?: () => void;
 }
 
-export function CleaningSection({ date, initial }: Props) {
+export function CleaningSection({ date, initial, onDataChange }: Props) {
   const [value, setValue] = useState<CleaningData>(initial ?? {});
   const filled = Boolean(value.duration_minutes || value.notes);
 
   const status = useAutosave(value, async (v) => {
-    if (!v.duration_minutes && !v.notes) return;
+    if (!v.duration_minutes && !v.notes) {
+      await deleteEntry(date, "cleaning").catch(() => {});
+      onDataChange?.();
+      return;
+    }
     await upsertEntry(date, "cleaning", { ...v });
+    onDataChange?.();
   });
+
+  const handleReset = async () => {
+    if (!confirm("Are you sure you want to reset this section?")) return;
+    try {
+      await deleteEntry(date, "cleaning");
+      setValue({});
+      onDataChange?.();
+    } catch (err) {
+      console.error("Failed to reset cleaning:", err);
+    }
+  };
 
   const time = value.datetime_logged?.slice(11, 16) ?? "";
   const summary = [
@@ -43,6 +60,7 @@ export function CleaningSection({ date, initial }: Props) {
       icon={Sparkles}
       status={status}
       filled={filled}
+      onReset={handleReset}
     >
       <div className="grid grid-cols-2 gap-3">
         <Field label="Time">

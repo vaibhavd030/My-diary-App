@@ -1,17 +1,9 @@
-"""Authentication primitives: password hashing and JWT encoding/decoding."""
-
-from __future__ import annotations
-
+import jwt
+import bcrypt
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-
-from my_diary.core.settings import settings
-
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
+from my_diary.core.settings import get_settings
 
 def hash_password(plain: str) -> str:
     """Hash a plaintext password with bcrypt.
@@ -20,9 +12,11 @@ def hash_password(plain: str) -> str:
         plain: The plaintext password.
 
     Returns:
-        A bcrypt hash suitable for storage.
+        A bcrypt hash suitable for storage (as a string).
     """
-    return _pwd_context.hash(plain)
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(plain.encode("utf-8"), salt)
+    return hashed.decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -35,7 +29,10 @@ def verify_password(plain: str, hashed: str) -> bool:
     Returns:
         True if the password matches, False otherwise.
     """
-    return _pwd_context.verify(plain, hashed)
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except ValueError:
+        return False
 
 
 def create_access_token(subject: str, extra_claims: dict[str, Any] | None = None) -> str:
@@ -48,6 +45,7 @@ def create_access_token(subject: str, extra_claims: dict[str, Any] | None = None
     Returns:
         A signed JWT as a string.
     """
+    settings = get_settings()
     expire = datetime.now(tz=timezone.utc) + timedelta(
         minutes=settings.access_token_expire_minutes
     )
@@ -71,13 +69,11 @@ def decode_access_token(token: str) -> dict[str, Any]:
         The decoded claims dictionary.
 
     Raises:
-        JWTError: If the token is invalid, expired, or tampered with.
+        jwt.PyJWTError: If the token is invalid, expired, or tampered with.
     """
-    try:
-        return jwt.decode(
-            token,
-            settings.jwt_secret.get_secret_value(),
-            algorithms=[settings.jwt_algorithm],
-        )
-    except JWTError:
-        raise
+    settings = get_settings()
+    return jwt.decode(
+        token,
+        settings.jwt_secret.get_secret_value(),
+        algorithms=[settings.jwt_algorithm],
+    )

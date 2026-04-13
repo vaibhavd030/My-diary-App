@@ -20,7 +20,11 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    database_url: str = Field(description="Async SQLAlchemy DB URL")
+    environment: str = Field(default="development")
+    database_url: str = Field(
+        default="sqlite+aiosqlite:///./diary.db",
+        description="Async SQLAlchemy DB URL"
+    )
     jwt_secret: SecretStr = Field(description="JWT signing secret")
 
     jwt_algorithm: str = Field(default="HS256")
@@ -40,4 +44,10 @@ class Settings(BaseSettings):
         return v
 
 
-settings = Settings()  # type: ignore[call-arg]
+from functools import lru_cache
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Return a cached Settings instance."""
+    return Settings()  # type: ignore[call-arg]

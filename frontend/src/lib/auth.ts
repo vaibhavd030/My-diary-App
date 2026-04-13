@@ -1,9 +1,6 @@
 "use client";
 
-import Cookies from "js-cookie";
-
-const TOKEN_KEY = "my_diary_token";
-const USER_KEY = "my_diary_user";
+const USER_KEY = "my_diary_user_v2";
 
 export interface AuthUser {
   id: string;
@@ -11,20 +8,21 @@ export interface AuthUser {
   first_name: string | null;
   last_name: string | null;
   abhyasi_id: string | null;
+  is_admin: boolean;
   created_at: string;
 }
 
-export function setAuth(token: string, user: AuthUser): void {
-  Cookies.set(TOKEN_KEY, token, { expires: 7, sameSite: "lax" });
-  Cookies.set(USER_KEY, JSON.stringify(user), { expires: 7, sameSite: "lax" });
-}
-
-export function getToken(): string | undefined {
-  return Cookies.get(TOKEN_KEY);
+/**
+ * Persist non-sensitive user profile data.
+ * Note: The JWT is now handled by the backend via httpOnly cookies.
+ */
+export function setAuth(_token: string, user: AuthUser): void {
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
 export function getUser(): AuthUser | null {
-  const raw = Cookies.get(USER_KEY);
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem(USER_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as AuthUser;
@@ -34,10 +32,13 @@ export function getUser(): AuthUser | null {
 }
 
 export function clearAuth(): void {
-  Cookies.remove(TOKEN_KEY);
-  Cookies.remove(USER_KEY);
+  localStorage.removeItem(USER_KEY);
 }
 
+/**
+ * Heuristic check for UI purposes.
+ * Real authorization is enforced by the backend via httpOnly cookies.
+ */
 export function isAuthed(): boolean {
-  return Boolean(getToken());
+  return Boolean(getUser());
 }

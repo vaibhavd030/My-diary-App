@@ -6,6 +6,7 @@ import os
 from collections.abc import AsyncIterator
 
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+os.environ.setdefault("ENVIRONMENT", "testing")
 os.environ.setdefault(
     "JWT_SECRET", "test-secret-abcdefghijklmnopqrstuvwxyz-1234567890"
 )

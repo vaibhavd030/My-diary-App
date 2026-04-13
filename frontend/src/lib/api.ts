@@ -1,19 +1,23 @@
 "use client";
 
 import axios, { AxiosInstance } from "axios";
-import { clearAuth, getToken, AuthUser } from "./auth";
+import Cookies from "js-cookie";
+import { clearAuth, AuthUser } from "./auth";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 export const api: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
 });
 
+// CSRF Interceptor
 api.interceptors.request.use((config) => {
-  const token = getToken();
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const token = Cookies.get("csrftoken");
+  if (token && config.method && ["post", "put", "delete"].includes(config.method.toLowerCase())) {
+    config.headers["X-CSRF-Token"] = token;
+  }
   return config;
 });
 
@@ -40,7 +44,8 @@ export type EntryType =
   | "sleep"
   | "gym"
   | "activity"
-  | "journal_note";
+  | "journal_note"
+  | "personal_watch";
 
 export interface EntryOut {
   id: string;
@@ -65,6 +70,21 @@ export interface CalendarMonthOut {
   year: number;
   month: number;
   cells: CalendarCell[];
+}
+
+export interface MonthlyStat {
+  label: string;
+  value: string | number;
+  unit: string | null;
+  secondary_value?: string | number | null;
+  secondary_unit?: string | null;
+  heatmap_data: Record<string, number>;
+}
+
+export interface AnalyticsMonthOut {
+  year: number;
+  month: number;
+  stats: Record<string, MonthlyStat>;
 }
 
 export interface LoginResponse {
@@ -94,6 +114,13 @@ export interface RegisterPayload {
 export async function registerUser(payload: RegisterPayload): Promise<AuthUser> {
   const { data } = await api.post<AuthUser>("/auth/register", payload);
   return data;
+}
+
+export async function changePassword(
+  current_password: string,
+  new_password: string,
+): Promise<void> {
+  await api.put("/auth/password", { current_password, new_password });
 }
 
 // ─── Entries ────────────────────────────────────────────────────────────
@@ -129,4 +156,44 @@ export async function getCalendar(
     `/api/calendar/${year}/${month}`,
   );
   return data;
+}
+
+export async function getAnalytics(
+  year: number,
+  month: number,
+): Promise<AnalyticsMonthOut> {
+  const { data } = await api.get<AnalyticsMonthOut>(
+    `/api/analytics/${year}/${month}`,
+  );
+  return data;
+}
+
+export async function getAnnualAnalytics(
+  year: number,
+): Promise<AnalyticsMonthOut> {
+  const { data } = await api.get<AnalyticsMonthOut>(
+    `/api/analytics/${year}/annual`,
+  );
+  return data;
+}
+
+export async function searchEntries(query: string): Promise<EntryOut[]> {
+  const { data } = await api.get<EntryOut[]>("/api/search", {
+    params: { query },
+  });
+  return data;
+}
+
+export async function exportDiary(): Promise<void> {
+  const res = await api.get("/api/export", { responseType: "blob" });
+  const blob = new Blob([res.data], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const today = new Date().toISOString().split("T")[0];
+  a.href = url;
+  a.download = `my_diary_export_${today}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

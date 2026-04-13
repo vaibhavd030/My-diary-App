@@ -10,10 +10,10 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from my_diary.core.settings import settings
+from my_diary.core.settings import get_settings
 
 engine = create_async_engine(
-    settings.database_url,
+    get_settings().database_url,
     echo=False,
     future=True,
     pool_pre_ping=True,
