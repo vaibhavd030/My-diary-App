@@ -1,0 +1,10 @@
+{
+  "name": "My Diary",
+  "short_name": "My Diary",
+  "description": "Daily journaling for practice and reflection.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F1E6",
+  "theme_color": "#F5F1E6",
+  "orientation": "portrait"
+}

@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: my_diary
+      POSTGRES_PASSWORD: my_diary
+      POSTGRES_DB: my_diary
+    ports:
+      - "5432:5432"
+    volumes:
+      - my_diary_pg:/var/lib/postgresql/data
+
+volumes:
+  my_diary_pg:

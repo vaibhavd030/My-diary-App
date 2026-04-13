@@ -1,0 +1,248 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f5f1e6;
+  --foreground: #3e3e3e;
+}
+
+@theme {
+  --color-paper: #f5f1e6;
+  --color-paper-dark: #ebe2cf;
+  --color-paper-soft: #fdfbf5;
+  --color-ink: #3e3e3e;
+  --color-ink-soft: #735e3b;
+  --color-gold-accent: #c5a065;
+  --color-gold-vibrant: #d4af37;
+  --color-gold-faint: #f0e4c7;
+  --color-bronze: #8c6d3f;
+  --color-bronze-dark: #735e3b;
+  --color-floral-pink: #e0c1b3;
+  --color-sage-green: #a3b18a;
+  --color-sage-dark: #7d8b63;
+  --color-border-cream: #e6dece;
+  --color-hint: #b7ad92;
+
+  --font-script: "Pinyon Script", cursive;
+  --font-serif: "Playfair Display", serif;
+  --font-heading: "Crimson Text", serif;
+  --font-body: "Geist Sans", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle diagonal paper-texture overlay */
+.paper-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M54.627 0l.83.83v58.34h-58.34v-.83l.83-.83h55.85v-55.85z' fill='%23C5A065' fill-opacity='0.4' fill-rule='evenodd'/%3E%3C/svg%3E");
+}
+
+/* Card chrome — white paper with thin gold top-border strip */
+.diary-card {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid var(--color-border-cream);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+.diary-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(to right, #c5a065, #8c6d3f);
+  z-index: 1;
+}
+
+/* The expanding row — primary interaction surface */
+.section-row {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 14px 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: background-color 0.15s ease;
+}
+.section-row:hover {
+  background-color: rgba(240, 228, 199, 0.35);
+}
+.section-row:focus-visible {
+  outline: 2px solid var(--color-bronze);
+  outline-offset: -2px;
+}
+
+/* Section group label */
+.group-label {
+  font-size: 11px;
+  color: var(--color-bronze);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0 4px 6px;
+  margin-top: 4px;
+}
+.group-label:first-child {
+  margin-top: 0;
+}
+
+/* Form field styling */
+.field-label {
+  font-size: 11px;
+  color: var(--color-hint);
+  display: block;
+  margin-bottom: 4px;
+}
+.field-input,
+.field-select {
+  width: 100%;
+  border: 1px solid var(--color-border-cream);
+  border-radius: 6px;
+  padding: 7px 10px;
+  background: white;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--color-ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.field-input:focus,
+.field-select:focus {
+  outline: none;
+  border-color: var(--color-gold-accent);
+  box-shadow: 0 0 0 3px rgba(197, 160, 101, 0.15);
+}
+.field-textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--color-border-cream);
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: var(--color-paper-soft);
+  font-family: var(--font-heading);
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--color-ink);
+  transition: border-color 0.15s ease;
+}
+.field-textarea:focus {
+  outline: none;
+  border-color: var(--color-gold-accent);
+}
+.field-textarea::placeholder {
+  color: var(--color-hint);
+  font-style: italic;
+}
+
+/* Body-parts pill chips */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  font-size: 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-cream);
+  background: white;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.pill:hover {
+  background: var(--color-gold-faint);
+}
+.pill[data-active="true"] {
+  background: var(--color-bronze);
+  color: white;
+  border-color: var(--color-bronze);
+}
+
+/* Skeleton placeholder for loading days */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(230, 222, 206, 0.4) 0%,
+    rgba(240, 228, 199, 0.6) 50%,
+    rgba(230, 222, 206, 0.4) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Smooth expand animation for section bodies */
+.section-body {
+  padding: 0 18px 16px;
+  border-top: 1px solid var(--color-border-cream);
+}
+
+/* Quality star button */
+.star {
+  font-size: 18px;
+  line-height: 1;
+  color: var(--color-border-cream);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 2px 3px;
+  transition: color 0.1s;
+}
+.star[data-on="true"] {
+  color: var(--color-gold-vibrant);
+}
+.star:hover {
+  color: var(--color-gold-accent);
+}
+
+/* Caret blink in journal */
+@keyframes caret-blink {
+  50% { opacity: 0; }
+}
+
+/* Tiny saved chip */
+.chip-saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-sage-dark);
+}
+.chip-saving {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-hint);
+}
+.chip-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #b91c1c;
+}
+
+/* Custom number input — strip spinners for cleanliness */
+.field-input[type="number"]::-webkit-outer-spin-button,
+.field-input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.field-input[type="number"] {
+  -moz-appearance: textfield;
+}
