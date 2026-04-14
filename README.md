@@ -94,8 +94,8 @@ Same layout, but the calendar moves into a **bottom-sheet drawer** invoked by th
 
 Accessible from the journal header. Two view modes:
 
-- **Month view** — three themed columns: Practice (Meditation, Cleaning, Sitting), Wellbeing (Sleep, Gym, Activity), Habits (6 Personal Watch checkboxes). Each stat shows a value, unit, secondary metric, and a **30-day mini-heatmap**.
-- **Year view** — an interactive **365-day heatmap grid** per practice category. Click any day cell to teleport directly to that date's journal entry.
+- **Month view** — three themed columns: Practice (Meditation, Cleaning, Sitting), Wellbeing (Sleep, Gym, Activity), Habits (6 Personal Watch checkboxes including **No Sugar**). Each stat shows a live **Day Streak** counter, secondary metrics, and a 30-day mini-heatmap.
+- **Year view** — an interactive **365-day heatmap grid** per practice category. Every cell is a "teleport" link: click any day to jump directly to that date's journal entry for instant editing.
 
 ### Login / registration
 
@@ -132,9 +132,9 @@ Single card, tabbed between *Sign in* and *Create account*. Optional Heartfulnes
 
 ### 📊 Analytics dashboard
 
-- **Month view**: Per-category stats with 30-day mini-heatmaps
-- **Year view**: 365-day interactive heatmap — click any day to navigate
-- Annual summary stats: total hours, consistency score
+- **Month view**: Per-category stats with 30-day mini-heatmaps and **Day Streak** badges.
+- **Year view**: 365-day interactive heatmap — click any day to navigate directly to the entry.
+- **Habit Streaks**: Automatic calculation of unbroken daily streaks for all 11 logged activities.
 - Smooth loading skeletons and error recovery
 
 ### 🧘 Meditation tracking (enhanced)
@@ -332,9 +332,9 @@ The `entries.data` JSONB column is a discriminated union — `type` tells the ap
 | `gym` | `date` | `datetime_logged`, `duration_minutes` (1–600), `body_parts[]`, `intensity` (1–10), `notes` |
 | `activity` | `date` | `datetime_logged`, `activity_type`, `duration_minutes`, `distance_km`, `intensity` (1–10), `notes` |
 | `journal_note` | `date`, `body` | — |
-| `personal_watch` | `date` | `got_angry`, `mtb`, `scrolled_phone`, `junk_food`, `watched_movie`, `slept_late` (all bool) |
+| `personal_watch` | `date` | `got_angry`, `mtb`, `scrolled_phone`, `junk_food`, **`no_sugar`**, `slept_late` (all bool) |
 
-> Fields in **bold** were added in April 2026 to the meditation schema.
+> Fields in **bold** were added or migrated in April 2026 (Meditation quality, awareness states, and the No Sugar habit).
 
 ### Enums
 
@@ -600,7 +600,7 @@ All backend configuration is loaded from environment variables (or a `.env` file
 | `TIMEZONE` | | `Europe/London` | Server-side date calculations |
 | `LOG_LEVEL` | | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 | `LOG_FORMAT` | | `console` | `console` (dev) or `json` (Cloud Run) |
-| `CORS_ORIGINS` | | `["http://localhost:3000"]` | JSON list of allowed origins |
+| `CORS_ORIGINS` | | `["http://localhost:3000"]` | Semicolon or comma separated list in production (e.g. `url1;url2`). |
 | `ENVIRONMENT` | | `development` | Set to `production` in GCP |
 
 Frontend (`frontend/.env.local`):
@@ -796,6 +796,14 @@ git push -u origin main
 ```
 
 ---
+
+## Recent Updates (April 2026)
+
+- [x] **Streak Hardening**: Reversed-sorted set logic ensures streaks are accurate regardless of DB row order.
+- [x] **No Sugar Tracker**: Successfully migrated all "Watched Movie" logs to the health-focused "No Sugar" habit.
+- [x] **Global Streaks**: Day Streaks implemented for all activities (Meditation, Cleaning, Gym, etc.).
+- [x] **Cloud Run Fixes**: Unified the frontend-backend URL mapping and fixed Pydantic environment variable parsing.
+- [x] **Interactive Year View**: Teleport from any heatmap cell directly to the journal entry.
 
 ## Roadmap
 
