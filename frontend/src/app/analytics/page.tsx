@@ -22,7 +22,7 @@ import { format } from "date-fns";
 import { todayISO } from "@/lib/dates";
 
 const SLEEP_COLORS = ["#f8f9fa", "#e6f4ea", "#ceead6", "#81c995", "#1e8e3e"];
-const MED_COLORS = ["#f8f9fa", "#fef3c7", "#fde68a", "#fbbf24", "#d97706"];
+const MED_COLORS = ["#f8f9fa", "#fdba74", "#f97316", "#c2410c", "#7c2d12"];
 const RE_COLORS = ["#f8f9fa", "#e0e7ff", "#c7d2fe", "#818cf8", "#4f46e5"];
 const PW_COLORS = ["#f8f9fa", "#fee2e2", "#fecaca", "#f87171", "#dc2626"];
 
@@ -283,7 +283,7 @@ export default function AnalyticsPage() {
                   <div className="h-px flex-1 bg-[#ede7d7]" />
                 </div>
                 <div className={`grid gap-6 ${view === "month" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}>
-                  {["got_angry", "mtb", "scrolled_phone", "junk_food", "watched_movie", "slept_late"].map(key => (
+                  {["got_angry", "mtb", "scrolled_phone", "junk_food", "no_sugar", "slept_late"].map(key => (
                     data.stats[key] && (
                       <StatCard 
                         key={key}
@@ -324,22 +324,30 @@ function StatCard({ title, icon: Icon, stat, colors, year, month, view }: any) {
         <div className="text-right">
           <div className="flex flex-col items-end">
             <div className="flex items-baseline gap-1">
-              <span className={`font-serif text-[#5c4d37] dark:text-[#e5e5e5] transition-all duration-500 ${view === 'year' ? 'text-4xl' : 'text-2xl'}`}>
+              <span className={`font-serif text-[#5c4d37] transition-all duration-500 ${view === 'year' ? 'text-4xl' : 'text-2xl'}`}>
                 {stat.value}
               </span>
               <span className="text-[10px] text-[#b7ad92] uppercase font-bold tracking-tighter">{stat.unit}</span>
             </div>
-            {stat.secondary_value !== undefined && (
-              <div className="text-[12px] font-bold text-[#8C6D3F] dark:text-[#c5a065] items-center flex gap-1">
-                <span className="opacity-60 tabular-nums">{stat.secondary_value}</span>
-                <span className="text-[9px] uppercase tracking-wider font-extrabold">{stat.secondary_unit}</span>
-              </div>
-            )}
+            <div className="flex gap-3 justify-end mt-1">
+              {stat.streak !== undefined && stat.streak !== null && (
+                <div className="text-[12px] font-bold text-[#ea580c] items-center flex gap-1.5 bg-[#ffedd5] px-2 py-0.5 rounded-sm">
+                  <span className="opacity-90 tabular-nums">{stat.streak}</span>
+                  <span className="text-[9px] uppercase tracking-wider font-extrabold text-[#c2410c]">Day Streak</span>
+                </div>
+              )}
+              {stat.secondary_value !== undefined && (
+                <div className="text-[12px] font-bold text-[#8C6D3F] items-center flex gap-1">
+                  <span className="opacity-60 tabular-nums">{stat.secondary_value}</span>
+                  <span className="text-[9px] uppercase tracking-wider font-extrabold">{stat.secondary_unit}</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
       
-      <div className="bg-[#FDFBF5] dark:bg-[#1a1a1a] p-3 rounded-xl border border-[#ede7d7] dark:border-[#404040]">
+      <div className="bg-[#FDFBF5] p-3 rounded-xl border border-[#ede7d7]">
         {view === "month" ? (
           <MiniHeatmap 
             year={year} 

@@ -23,6 +23,61 @@ from my_diary.schemas.api import (
 )
 from my_diary.schemas.analytics import AnalyticsMonthOut, MonthlyStat
 from sqlalchemy import cast, String as SqlString
+from datetime import timedelta
+
+async def _get_streak(session: AsyncSession, user_id: uuid.UUID, entry_type: str) -> int:
+    """Compute current unbroken daily streak natively from historical tracking."""
+    today = dt_date.today()
+    result = await session.execute(
+        select(Entry.entry_date)
+        .where(and_(Entry.user_id == user_id, Entry.type == entry_type))
+        .order_by(Entry.entry_date.desc())
+    )
+    dates = result.scalars().all()
+    unique_dates = sorted(list(set(dates)), reverse=True)
+    if not unique_dates:
+        return 0
+            
+    if (today - unique_dates[0]) > timedelta(days=1):
+        return 0
+
+    streak = 1
+    for i in range(len(unique_dates) - 1):
+        if (unique_dates[i] - unique_dates[i+1]) == timedelta(days=1):
+            streak += 1
+        else:
+            break
+    return streak
+
+async def _get_pw_item_streak(session: AsyncSession, user_id: uuid.UUID, item_key: str) -> int:
+    """Compute current unbroken daily streak for a specific personal watch item."""
+    today = dt_date.today()
+    result = await session.execute(
+        select(Entry.entry_date, Entry.data)
+        .where(and_(Entry.user_id == user_id, Entry.type == "personal_watch"))
+        .order_by(Entry.entry_date.desc())
+    )
+    rows = result.all()
+    if not rows:
+        return 0
+
+    # Filter to only dates where the item was True
+    streak_dates = [r[0] for r in rows if r[1].get(item_key) is True]
+    if not streak_dates:
+        return 0
+        
+    unique_dates = sorted(list(set(streak_dates)), reverse=True)
+
+    if (today - unique_dates[0]) > timedelta(days=1):
+        return 0
+
+    streak = 1
+    for i in range(len(unique_dates) - 1):
+        if (unique_dates[i] - unique_dates[i+1]) == timedelta(days=1):
+            streak += 1
+        else:
+            break
+    return streak
 
 KNOWN_ENTRY_TYPES: tuple[EntryType, ...] = tuple(ENTRY_MODEL_BY_TYPE.keys())
 
@@ -218,6 +273,7 @@ async def get_analytics(
     med_entries = by_type.get("meditation", [])
     total_med_min = sum(e.data.get("duration_minutes", 0) or 0 for e in med_entries)
     unique_med_days = len(set(e.entry_date for e in med_entries))
+    med_streak = await _get_streak(session, user_id, "meditation")
     stats["meditation"] = MonthlyStat(
         label="Meditation",
         value=round(total_med_min / 60, 1),
@@ -228,12 +284,14 @@ async def get_analytics(
             e.entry_date.isoformat(): min(4, (e.data.get("duration_minutes", 0) or 0) // 15)
             for e in med_entries
         },
+        streak=med_streak,
     )
 
     # 2. Cleaning & Sitting (Aggregate hours too)
     for t in ["cleaning", "sitting"]:
         t_entries = by_type.get(t, [])
         total_min = sum(e.data.get("duration_minutes", 0) or 0 for e in t_entries)
+        streak = await _get_streak(session, user_id, t)
         stats[t] = MonthlyStat(
             label=t.title(),
             value=round(total_min / 60, 1),
@@ -243,7 +301,8 @@ async def get_analytics(
             heatmap_data={
                 e.entry_date.isoformat(): min(4, (e.data.get("duration_minutes", 0) or 0) // 15)
                 for e in t_entries
-            }
+            },
+            streak=streak
         )
 
     # 3. Sleep (User req: avg hours, heatmap green scale)
@@ -264,9 +323,11 @@ async def get_analytics(
 
     # 3. Personal Watch (aggregated items)
     pw_entries = by_type.get("personal_watch", [])
-    pw_items = ["got_angry", "mtb", "junk_food", "scrolled_phone", "watched_movie", "slept_late"]
+    pw_items = ["got_angry", "mtb", "junk_food", "scrolled_phone", "no_sugar", "slept_late"]
     for item in pw_items:
         count = sum(1 for e in pw_entries if e.data.get(item))
+        streak = await _get_pw_item_streak(session, user_id, item)
+            
         stats[item] = MonthlyStat(
             label=item.replace("_", " ").title(),
             value=count,
@@ -274,17 +335,20 @@ async def get_analytics(
             heatmap_data={
                 e.entry_date.isoformat(): 4 if e.data.get(item) else 0
                 for e in pw_entries
-            }
+            },
+            streak=streak
         )
     
     # 4. Others (Simplistic richness for now)
     for t in ["gym", "activity"]:
         t_entries = by_type.get(t, [])
+        streak = await _get_streak(session, user_id, t)
         stats[t] = MonthlyStat(
             label=t.title(),
             value=len(t_entries),
             unit="sessions",
-            heatmap_data={e.entry_date.isoformat(): 4 for e in t_entries}
+            heatmap_data={e.entry_date.isoformat(): 4 for e in t_entries},
+            streak=streak
         )
 
     return AnalyticsMonthOut(year=year, month=month, stats=stats)
@@ -320,6 +384,7 @@ async def get_annual_analytics(
     med_entries = by_type.get("meditation", [])
     total_med_min = sum(float(e.data.get("duration_minutes", 0) or 0) for e in med_entries)
     unique_med_days = len(set(e.entry_date for e in med_entries))
+    med_streak = await _get_streak(session, user_id, "meditation")
     stats["meditation"] = MonthlyStat(
         label="Meditation",
         value=round(total_med_min / 60.0, 1),
@@ -330,12 +395,14 @@ async def get_annual_analytics(
             e.entry_date.isoformat(): int(min(4, float(e.data.get("duration_minutes", 0) or 0) // 15))
             for e in med_entries
         },
+        streak=med_streak,
     )
 
     # 2. Cleaning & Sitting
     for t in ["cleaning", "sitting"]:
         t_entries = by_type.get(t, [])
         total_min = sum(float(e.data.get("duration_minutes", 0) or 0) for e in t_entries)
+        t_streak = await _get_streak(session, user_id, t)
         stats[t] = MonthlyStat(
             label=t.title(),
             value=round(total_min / 60.0, 1),
@@ -345,7 +412,8 @@ async def get_annual_analytics(
             heatmap_data={
                 e.entry_date.isoformat(): int(min(4, float(e.data.get("duration_minutes", 0) or 0) // 15))
                 for e in t_entries
-            }
+            },
+            streak=t_streak if t == "cleaning" else None
         )
 
     # 3. Sleep
@@ -366,6 +434,7 @@ async def get_annual_analytics(
     for t in ["gym", "activity"]:
         t_entries = by_type.get(t, [])
         total_h = sum(float(e.data.get("duration_minutes", 0) or 0) for e in t_entries) / 60.0
+        streak = await _get_streak(session, user_id, t)
         stats[t] = MonthlyStat(
             label=t.title(),
             value=round(total_h, 1),
@@ -375,23 +444,27 @@ async def get_annual_analytics(
             heatmap_data={
                 e.entry_date.isoformat(): int(min(4, float(e.data.get("duration_minutes", 0) or 0) // 15))
                 for e in t_entries
-            }
+            },
+            streak=streak
         )
 
     # 5. Habits (PW)
-    for t in ["got_angry", "mtb", "scrolled_phone", "junk_food", "watched_movie", "slept_late"]:
+    for t in ["got_angry", "mtb", "scrolled_phone", "junk_food", "no_sugar", "slept_late"]:
         pw_entries = [
             e for e in by_type.get("personal_watch", []) 
             if e.data.get(t) is True
         ]
         unique_days = len(set(e.entry_date for e in pw_entries))
+        streak = await _get_pw_item_streak(session, user_id, t)
+
         stats[t] = MonthlyStat(
             label=t.replace("_", " ").title(),
             value=int(len(pw_entries)),
             unit="days",
             secondary_value=round(float((unique_days / 365.0) * 100.0), 1) if year > 0 else 0.0,
             secondary_unit="% year",
-            heatmap_data={e.entry_date.isoformat(): 4 for e in pw_entries}
+            heatmap_data={e.entry_date.isoformat(): 4 for e in pw_entries},
+            streak=streak
         )
 
     return AnalyticsMonthOut(year=year, month=1, stats=stats)

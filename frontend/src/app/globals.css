@@ -19,24 +19,7 @@
   --hint: #b7ad92;
 }
 
-.dark {
-  --background: #1a1a1a;
-  --foreground: #e5e5e5;
-  --paper: #1a1a1a;
-  --paper-dark: #262626;
-  --paper-soft: #2d2d2d;
-  --ink: #e5e5e5;
-  --ink-soft: #a3a3a3;
-  --gold-accent: #c5a065;
-  --gold-vibrant: #d4af37;
-  --gold-faint: #3f3f3f;
-  --bronze: #c5a065;
-  --bronze-dark: #d4af37;
-  --sage-green: #a3b18a;
-  --sage-dark: #84cc16;
-  --border-cream: #404040;
-  --hint: #737373;
-}
+
 
 @theme {
   --color-paper: var(--paper);

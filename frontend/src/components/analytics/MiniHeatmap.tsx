@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, getDay } from "date-fns";
+import { useRouter } from "next/navigation";
 
 interface Props {
   year: number;
@@ -13,6 +14,8 @@ interface Props {
 const DEFAULT_COLORS = ["#f8f9fa", "#e6f4ea", "#ceead6", "#81c995", "#1e8e3e"];
 
 export function MiniHeatmap({ year, month, data, colorScale = DEFAULT_COLORS }: Props) {
+  const router = useRouter();
+
   const days = useMemo(() => {
     const start = startOfMonth(new Date(year, month - 1));
     const end = endOfMonth(start);
@@ -38,14 +41,25 @@ export function MiniHeatmap({ year, month, data, colorScale = DEFAULT_COLORS }: 
 
         {days.map((day) => {
           const iso = format(day, "yyyy-MM-dd");
+          const dayNum = format(day, "d");
           const intensity = data[iso] ?? 0;
+          const isSystemStart = iso === "2026-04-12";
+          
           return (
             <div
               key={iso}
-              title={`${iso}: level ${intensity}`}
-              className="w-full aspect-square rounded-[2px] transition-colors"
-              style={{ backgroundColor: colorScale[intensity] || colorScale[0] }}
-            />
+              title={`${iso}`}
+              onClick={() => router.push(`/journal/${iso}`)}
+              className={`w-full aspect-square rounded-[2px] cursor-pointer hover:ring-1 hover:ring-[#8C6D3F]/50 transition-all flex items-center justify-center text-[10px] font-semibold ${
+                isSystemStart ? "ring-2 ring-red-500 ring-offset-1 relative z-10" : ""
+              }`}
+              style={{ 
+                backgroundColor: colorScale[intensity] || colorScale[0],
+                color: intensity > 2 ? "#ffffff" : "#a3997e"
+              }}
+            >
+              {dayNum}
+            </div>
           );
         })}
       </div>

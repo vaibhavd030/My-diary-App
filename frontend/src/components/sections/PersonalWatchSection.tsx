@@ -11,7 +11,7 @@ export interface PersonalWatchData {
   mtb?: boolean;
   junk_food?: boolean;
   scrolled_phone?: boolean;
-  watched_movie?: boolean;
+  no_sugar?: boolean;
   slept_late?: boolean;
 }
 
@@ -52,7 +52,7 @@ export function PersonalWatchSection({ date, initial, onDataChange }: Props) {
     { key: "mtb", label: "MTB", color: "text-purple-500" },
     { key: "junk_food", label: "Junk Food", color: "text-orange-500" },
     { key: "scrolled_phone", label: "Scrolled Phone in Bed", color: "text-blue-500" },
-    { key: "watched_movie", label: "Watched Movie", color: "text-indigo-500" },
+    { key: "no_sugar", label: "No Sugar", color: "text-teal-500" },
     { key: "slept_late", label: "Slept Late", color: "text-slate-500" },
   ] as const;
 

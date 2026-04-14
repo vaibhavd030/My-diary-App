@@ -9,8 +9,6 @@ import {
   LogOut,
   LineChart,
   Search,
-  Moon,
-  Sun,
   X,
   Download,
   Settings as SettingsIcon,
@@ -71,27 +69,6 @@ export default function JournalPage() {
   const [searchResults, setSearchResults] = useState<EntryOut[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Theme state
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  useEffect(() => {
-    const saved = localStorage.getItem("theme") as "light" | "dark";
-    if (saved) {
-      setTheme(saved);
-      if (saved === "dark") document.documentElement.classList.add("dark");
-    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      setTheme("dark");
-      document.documentElement.classList.add("dark");
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const next = theme === "light" ? "dark" : "light";
-    setTheme(next);
-    localStorage.setItem("theme", next);
-    if (next === "dark") document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
-  };
 
   useEffect(() => {
     if (!searchQuery.trim() || searchQuery.length < 2) {
@@ -167,13 +144,7 @@ export default function JournalPage() {
               >
                 <Search className="w-4 h-4" />
               </button>
-              <button
-                onClick={toggleTheme}
-                className="w-9 h-9 rounded-full bg-white dark:bg-[#262626] border border-[#e6dece] dark:border-[#404040] text-[#8C6D3F] flex items-center justify-center hover:bg-[#F0E4C7] dark:hover:bg-[#3f3f3f] transition-colors"
-                aria-label="Toggle theme"
-              >
-                {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-              </button>
+
               <button
                 onClick={() => setCalendarOpen((v) => !v)}
                 className="lg:hidden w-9 h-9 rounded-full bg-white border border-[#e6dece] text-[#8C6D3F] flex items-center justify-center hover:bg-[#F0E4C7]"

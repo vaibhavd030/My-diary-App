@@ -207,7 +207,7 @@ class PersonalWatchEntry(BaseModel):
         mtb: Mouth to Brain spiritual check.
         junk_food: Whether outside/junk food was consumed.
         scrolled_phone: Whether phone was used in bed.
-        watched_movie: Whether a movie was watched.
+        no_sugar: Whether the user avoided sugar today.
         slept_late: Whether the user went to bed later than desired.
     """
 
@@ -216,7 +216,7 @@ class PersonalWatchEntry(BaseModel):
     mtb: bool = False
     junk_food: bool = False
     scrolled_phone: bool = False
-    watched_movie: bool = False
+    no_sugar: bool = False
     slept_late: bool = False
 
 

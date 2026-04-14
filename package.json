@@ -9,6 +9,8 @@
     "backend": "cd backend && uv run uvicorn my_diary.api.main:app --host 0.0.0.0 --reload",
     "frontend": "npm run dev --prefix frontend -- -H 0.0.0.0",
     "dev": "npm run db && concurrently -n \"DB,API,WEB\" -c \"magenta,blue,green\" \"echo 'Ensuring environment is ready...'\" \"npm run backend\" \"npm run frontend\"",
+    "proxy": "./backend/bin/cloud-sql-proxy my-tele-pa:europe-west2:diary-db-prod --port 5433",
+    "dev:cloud": "concurrently -n \"PROXY,API,WEB\" -c \"cyan,blue,green\" \"npm run proxy\" \"npm run backend\" \"npm run frontend\"",
     "test:backend": "cd backend && uv run pytest"
   },
   "devDependencies": {

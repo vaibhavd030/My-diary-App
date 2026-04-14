@@ -1,0 +1,42 @@
+# Node.js
+node_modules/
+.npm/
+
+# Next.js
+.next/
+out/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.toast
+.lucid
+.pytest_cache/
+.coverage
+.cache/
+.mypy_cache/
+
+# Git
+.git/
+.gitignore
+
+# OS
+.DS_Store
+
+# Frontend-specific heavy folders (exclude when building backend)
+# Note: Since I'll run the build from the root, I should ignore the one I'm not building.
+# However, gcloud build submit uses this file to filter.
+# I'll just exclude all heavy stuff.
+frontend/node_modules/
+frontend/.next/
+backend/venv/
+backend/.venv/
+backend/__pycache__/

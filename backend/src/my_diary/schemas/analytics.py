@@ -20,6 +20,7 @@ class MonthlyStat(BaseModel):
         default_factory=dict, 
         description="Map of ISO date string to intensity level (0-4)"
     )
+    streak: int | None = Field(default=None, description="Current consecutive day streak.")
 
 
 class AnalyticsMonthOut(BaseModel):
