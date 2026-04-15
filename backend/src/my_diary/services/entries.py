@@ -299,7 +299,11 @@ async def get_analytics(
             secondary_value=len(t_entries),
             secondary_unit="sessions",
             heatmap_data={
-                e.entry_date.isoformat(): min(4, (e.data.get("duration_minutes", 0) or 0) // 15)
+                # Use minimum intensity of 2 so every logged session shows a
+                # clearly visible colour, even when duration_minutes is 0 or
+                # not recorded (fixes both the light/dark discrepancy and the
+                # missing-colour bug for backdated entries).
+                e.entry_date.isoformat(): max(2, min(4, (e.data.get("duration_minutes", 0) or 0) // 15))
                 for e in t_entries
             },
             streak=streak
@@ -410,7 +414,9 @@ async def get_annual_analytics(
             secondary_value=int(len(t_entries)),
             secondary_unit="sessions",
             heatmap_data={
-                e.entry_date.isoformat(): int(min(4, float(e.data.get("duration_minutes", 0) or 0) // 15))
+                # Same min-2 guard as the monthly view — keeps colours
+                # consistent and visible for zero/short-duration entries.
+                e.entry_date.isoformat(): int(max(2, min(4, float(e.data.get("duration_minutes", 0) or 0) // 15)))
                 for e in t_entries
             },
             streak=t_streak if t == "cleaning" else None
